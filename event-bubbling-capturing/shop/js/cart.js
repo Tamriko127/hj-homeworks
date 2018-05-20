@@ -1,9 +1,17 @@
 'use strict';
-list.addEventListener('click', checkCart);
+list.addEventListener('click', buttonAddToCart);
 
-function checkCart(event) {
-	if ((event.target.tagName === 'A') && (event.target.classList.contains('add-to-cart'))) {
-		event.preventDefault();
-		addToCart(event.target.dataset);
+function buttonAddToCart(event) {
+	event.preventDefault();
+
+	if (!event.target.classList.contains('add-to-cart')) {
+		return;
+	}
+
+	const itemData = {
+		title: event.target.dataset.title,
+		price: event.target.dataset.price
 	};
+
+	addToCart(itemData);
 }
