@@ -1,38 +1,45 @@
 'use strict';
+const canvas = document.querySelector('canvas');
+const ctx = canvas.getContext('2d');
 
-const cnvs = document.querySelector('canvas');
-const ctx = cnvs.getContext('2d');
-const cnvsWidth = cnvs.width;
-const cnvsHeight = cnvs.height;
-const PI = Math.PI;
-const colors = ['#ffffff', '#ffe9c4', '#d4fbff'];
+canvas.addEventListener('click', update);
+update();
 
-cnvs.style.backgroundColor = '#000000';
+function update() {
+	ctx.fillStyle = '#000000';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-cnvs.addEventListener('click', (e) => {
-	const countStars = randomNumber(200, 400);
+	for (let i = 1; i <= randomInteger(200, 400); i++) {
+		const x = random(0, canvas.width);
+		const y = random(0, canvas.height);
+		const r = random(0, 1.1);
+		const alpha = random(0.8, 1);
+		const color = randomColor();
 
-	ctx.clearRect(0, 0, cnvsWidth, cnvsHeight);
+		ctx.beginPath();
+		ctx.fillStyle = color;
+		ctx.globalAlpha = alpha;
+		ctx.arc(x, y, r, 0, 2 * Math.PI);
+		ctx.fill();
 
-	for (let i = 0; i < countStars; i++) {
-		const x = Math.round(Math.random() * cnvsWidth);
-		const y = Math.round(Math.random() * cnvsHeight);
-		drawStar(x, y);
 	}
-});
-
-function randomNumber(min, max, float = false) {
-	return float ? (min + (Math.random() * (max - min))).toFixed(1) : Math.floor(min + Math.random() * (max + 1 - min));
 }
 
-function drawStar(x, y) {
-	const radius = randomNumber(0, 1.1, true);
-	const color = colors[randomNumber(0, 2)];
-	const opacity = randomNumber(0.8, 1, true);
+function random(from, to) {
+	return from + ((to - from) * Math.random());
+}
 
-	ctx.beginPath();
-	ctx.globalAlpha = opacity;
-	ctx.fillStyle = color;
-	ctx.fillRect(x, y, radius, radius);
-	ctx.closePath();
+function randomInteger(from, to) {
+	return Math.round(random(from, to));
+}
+
+function randomColor() {
+	const randColor = random(0, 3)
+	if (randColor < 1) {
+		return '#ffffff'
+	} else if (randColor < 2) {
+		return '#ffe9c4'
+	} else {
+		return '#d4fbff'
+	}
 }
