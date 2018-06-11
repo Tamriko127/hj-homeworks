@@ -36,4 +36,3 @@ function drawStar(x, y) {
 	ctx.fillRect(x, y, radius, radius);
 	ctx.closePath();
 }
-© 2018 GitHub, Inc.
