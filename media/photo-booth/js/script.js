@@ -1,138 +1,191 @@
 'use strict';
-const app = document.querySelector('.app');
-const controls = document.querySelector('.controls');
-const btnTakePhoto = controls.querySelector('#take-photo');
-const errors = document.getElementById('error-message');
-const listImages = document.querySelector('.list');
+// Находим нужные элементы на странице
+const photoAppBlock = document.querySelector('.app');
+const photoControlsBlock = document.querySelector('.controls');
+const takePhotoBtn = document.getElementById('take-photo');
+const errorMessageBox = document.getElementById('error-message');
+const photoList = document.querySelector('.list');
+const photoBoothApiUrl = 'https://neto-api.herokuapp.com/photo-booth';
 
-const video = document.createElement('video');
-const audio = document.createElement('audio');
+// Общие параметры отправляемого запроса
+const requestOptions = {
+	method: 'POST',
+	'Content-Type': 'multipart/form-data'
+};
 
-audio.src = './audio/click.mp3';
+// Переменные для доступа к файлу звука и контроллер ошибок
+let makePhotoSound;
+let errorChecking = false;
 
-if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+// Добавление недостающих элементов на страницу
+//// Проверка доступности API
+(function () {
+	sendImage('');
+})();
+
+//// Выводим видео на экран
+(function () {
 	navigator.mediaDevices
 		.getUserMedia({ video: true, audio: false })
 		.then(stream => {
+			const video = document.createElement('video');
 			video.src = URL.createObjectURL(stream);
-			video.play();
-			app.appendChild(video);
+			video.id = 'video-stream';
 
-			controls.style.display = 'flex';
-
-			btnTakePhoto.addEventListener('click', () => takePicture(stream));
+			// Если не возникало ошибок до этого момента, выводим видео на экран
+			if (!errorChecking) {
+				photoAppBlock.appendChild(video);
+				photoControlsBlock.classList.add('visible');
+			}
 		})
 		.catch(error => {
-			errors.textContent = `Нет доступа к камере. Ошибка ${error.name}`;
-			errors.style.display = 'block';
+			errorChecking = true;
+			errorMessageBox.textContent = 'Нет доступа к камере';
+			errorMessageBox.classList.add('visible');
+			console.error(error);
 		});
-} else {
-	errors.textContent = 'Ваш браузер не поддерживает mediaDevices';
-	errors.style.display = 'block';
-}
+})();
 
-function tmplImg(imgUrl) {
-	return el('figure', {}, [
-		el('img', { src: imgUrl }),
-		el('figcaption', {}, [
-			el('a', { href: imgUrl, download: 'snapshot.png' }, [
-				el('i', { class: 'material-icons' }, 'file_download')
-			]),
-			el('a', {}, [
-				el('i', { class: 'material-icons' }, 'file_upload')
-			]),
-			el('a', {}, [
-				el('i', { class: 'material-icons' }, 'delete')
-			])
-		])
-	]);
-}
+//// Создаём аудио-тег, оставляя ссылку на него в глобальном scope
+(function () {
+	makePhotoSound = document.createElement('audio');
+	makePhotoSound.src = './audio/click.mp3';
+	document.body.appendChild(makePhotoSound);
+})();
 
-function takePicture(stream) {
-	const img = document.createElement('img');
-	const canvas = document.createElement('canvas');
-	const ctx = canvas.getContext('2d');
-	let imgTpl;
-	let dataUrl;
+// Обработка кликов по кнопке "Сделать фото"
+takePhotoBtn.addEventListener('click', event => {
+	try {
+		// Получаем наш видео-тег
+		const video = document.getElementById('video-stream');
 
-	canvas.width = video.videoWidth;
-	canvas.height = video.videoHeight;
-
-	ctx.drawImage(video, 0, 0);
-
-	dataUrl = canvas.toDataURL();
-	imgTpl = tmplImg(dataUrl);
-
-	imgTpl.addEventListener('click', (e) => {
-		switch (e.target.textContent) {
-			case 'file_download':
-				e.target.style.display = 'none';
-				break;
-			case 'file_upload':
-				fetchRequest(dataUrl, e.target);
-				break;
-			case 'delete':
-				imgTpl.parentNode.removeChild(imgTpl);
-				break;
+		if (!video) {
+			throw new Error('Не удалось найти видео-поток');
 		}
+
+		// Создаём канвас
+		const canvas = document.createElement('canvas');
+		const canvasContext = canvas.getContext('2d');
+		canvas.width = video.videoWidth;
+		canvas.height = video.videoHeight;
+		canvasContext.drawImage(video, 0, 0);
+
+		// Получаем и обрабатываем снятое изображение
+		const imageUrl = canvas.toDataURL();
+		const imageHtml = captureImage(imageUrl);
+
+		// Добавляем наше фото на страницу и, по системе товарища Павлова,
+		// даём понять, что всё прошло хорошо
+		if (!photoList.childNodes.length) {
+			photoList.appendChild(imageHtml);
+		} else {
+			photoList.insertBefore(imageHtml, photoList.childNodes[0]);
+		}
+		makePhotoSound.play();
+
+	} catch (e) {
+		console.log('Возникла ошибка: ', e.message);
+	}
+});
+
+// Шаблон создания HTML для изображения
+function captureImage(imgPath) {
+	// Создаю набор необходимых html-элементов
+	const figure = document.createElement('figure');
+	const img = document.createElement('img');
+	const figcaption = document.createElement('figcaption');
+	const anchor = document.createElement('a');
+	const icon = document.createElement('i');
+
+	// класс material-icons общий для всех тегов i
+	icon.classList.add('material-icons');
+
+	// Создаю набор html-элементов, согласно разметке
+	const anchorDownload = anchor.cloneNode();
+	const anchorUpload = anchor.cloneNode();
+	const anchorDelete = anchor.cloneNode();
+
+	const iconDownload = icon.cloneNode();
+	const iconUpload = icon.cloneNode();
+	const iconDelete = icon.cloneNode();
+
+	// Настройка созданных тегов
+	img.src = imgPath;
+
+	iconDownload.textContent = 'file_download';
+	anchorDownload.href = imgPath;
+	anchorDownload.download = 'snapshot.png';
+	anchorDownload.appendChild(iconDownload);
+
+	iconUpload.textContent = 'file_upload';
+	anchorUpload.appendChild(iconUpload);
+
+	iconDelete.textContent = 'delete';
+	anchorDelete.appendChild(iconDelete);
+
+	// Наполнение объекта ответа функции (тег figure)
+	[anchorDownload, anchorUpload, anchorDelete].forEach(node => {
+		figcaption.appendChild(node);
+	});
+	figure.appendChild(img);
+	figure.appendChild(figcaption);
+
+	// Обработка кликов по кнопкам
+	anchorDownload.addEventListener('click', event => {
+		event.currentTarget.style.display = 'none';
 	});
 
-	listImages.appendChild(imgTpl);
+	anchorUpload.addEventListener('click', event => {
+		// Столкнулся с проблемой, что из-за всяческих АдБлоков и БраузерСинков
+		// теряется контекст event.currentTarget при получении ответа функции
+		// sendImage... По-этому, пришлось сохранить ссылку на него в начале обработчика
+		const clickedBtn = event.currentTarget;
+		const response = sendImage(imgPath);
 
-	audio.play();
+		response
+			.then(apiResponse => clickedBtn.style.display = 'none')
+			.catch(console.error);
+	});
+
+	anchorDelete.addEventListener('click', event => {
+		figure.remove();
+	});
+
+	return figure;
 }
 
-function el(tagName, attributes, children) {
-	const element = document.createElement(tagName);
+// Отправка изображений на сервер
+function sendImage(imageSrc) {
+	// Результат работы функции - промис с ответом сервера или false
+	return fetch(imageSrc)
+		.then(response => response.blob())
+		.then(imageBlob => {
+			const sendingOptions = Object.assign({}, requestOptions);
+			const requestData = new FormData();
 
-	if (typeof attributes === 'object') {
-		Object.keys(attributes).forEach(i => element.setAttribute(i, attributes[i]));
-	}
-
-	if (typeof children === 'string') {
-		element.textContent = children;
-	} else if (children instanceof Array) {
-		children.forEach(child => element.appendChild(child));
-	}
-
-	return element;
-}
-
-function fetchRequest(imgData, target) {
-	const data = new FormData();
-	const blob = dataUriToBlob(imgData);
-
-	data.append('image', blob);
-
-	fetch('https://neto-api.herokuapp.com/photo-booth', {
-		body: data,
-		credentials: 'same-origin',
-		method: 'POST'
-	})
-		.then(result => {
-			if (200 <= result.status && result.status < 300) {
-				return result;
-			}
-			throw new Error(result.statusText);
+			requestData.append('image', imageBlob);
+			sendingOptions.body = requestData;
+			return fetch(photoBoothApiUrl, sendingOptions);
 		})
-		.then(result => {
-			// const linkToPhoto = el('div', {style: 'text-align: center; margin-top: 15px; font-weight: bold; color: #0f0;'}, result);
+		.then(apiResponse => {
+			if (apiResponse.status < 200 || apiResponse.status >= 300) {
+				throw new Error('API availability issues');
+			}
 
-			console.log(result);
+			return new Promise((done, fail) => {
+				try {
+					done(apiResponse);
+				} catch (e) {
+					fail(e);
+				}
+			});
+		})
+		.catch(error => {
+			errorChecking = true;
+			errorMessageBox.textContent = 'Проблема с доступностью API';
+			errorMessageBox.classList.add('visible');
+			console.error(error);
 
-			// document.querySelector('.container').appendChild(linkToPhoto);
-			target.style.display = 'none';
+			return false;
 		});
-}
-
-function dataUriToBlob(dataURI) {
-	const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
-	const array = [];
-	const byteString = atob(dataURI.split(',')[1]);
-
-	for (let i = 0; i < byteString.length; i++) {
-		array.push(byteString.charCodeAt(i));
-	}
-
-	return new Blob([new Uint8Array(array)], { type: mimeString });
 }
