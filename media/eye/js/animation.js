@@ -1,58 +1,115 @@
 'use strict';
+const eyeBall = document.querySelector('.big-book__eye');
+const eyePupil = document.querySelector('.big-book__pupil');
 
-const eye = document.querySelector('.big-book__eye');
-const pupil = document.querySelector('.big-book__pupil');
-const pupilW = pupil.clientWidth;
-const pupilH = pupil.clientHeight;
-const pupilR = pupil.clientWidth / 2;
+window.addEventListener('mousemove', event => {
+	// Размеры и позиция тела сайта
+	const bodyBCR = document.body.getBoundingClientRect();
 
-const rectPupil = pupil.getBoundingClientRect();
+	// Размены окна браузера
+	const windowSize = {
+		width: window.innerWidth,
+		height: document.documentElement.clientHeight
+	};
 
-const centerPupilX = rectPupil.x + pupilR;
-const centerPupilY = rectPupil.y + pupilR;
+	// Размеры и позиция глазного яблока
+	const eyeBallBCR = eyeBall.getBoundingClientRect();
+	const eyeBallSize = {
+		width: eyeBallBCR.width,
+		height: eyeBallBCR.height
+	};
 
-// const offsetPupil = pupil.getBoundingClientRect()
-// const centerAbsX = offsetPupil.x + pupilR;
-// const centerAbsY = offsetPupil.y + pupilR;
+	// Определение положения центра глазного яблока
+	const eyeBallCenterPosition = {
+		//// Левая граница глаза - левая граница body + половина ширины глаза
+		x: (eyeBallBCR.left - bodyBCR.left) + (eyeBallSize.width / 2),
+		//// Верхняя граница глаза - верхняя граница body + половина высоты глаза
+		y: (eyeBallBCR.top - bodyBCR.top) + (eyeBallSize.height / 2)
+	};
 
-// const bodyWidth = document.body.clientWidth;
-// const bodyHeight = document.body.clientHeight;
+	// Позиция курсора мыши
+	const mousePos = {
+		x: event.pageX,
+		y: event.pageY
+	};
 
-document.addEventListener('mousemove', event => {
-	// const widthPupil = pupil.clientWidth;
-	// const heightPupil = pupil.clientHeight;
-	// const offsetPupil = pupil.getBoundingClientRect();
+	const pupilPositionX = function () {
+		// Определяем отступы слева и справа от центра глаза до края экрана
+		const positionXOffsetRange = {
+			//// От отрицательное значение отслупа слева до центра глаза
+			from: -eyeBallCenterPosition.x,
+			//// Полная ширина экрана минус отступ слева до центра глаза
+			to: windowSize.width - eyeBallCenterPosition.x
+		};
 
-	const cursorX = event.pageX;
-	const cursorY = event.pageY;
+		// Положение мышки относительно центра глаза по оси X
+		const differenceX = mousePos.x - eyeBallCenterPosition.x;
 
-	// const posX = cursorX - centerAbsX + document.body.scrollLeft;
-	// const posY = cursorY - centerAbsY + document.body.scrollTop;
-	//
-	// const coords = {
-	//   x: posX,
-	//   y: posY
-	// };
-	//
-	// if(posX*posX + posY*posY > pupilR*pupilR) {
-	//   if(posX !== 0) {
-	//       var m = posY/posX;
-	//       coords.x = Math.sqrt(pupilR*pupilR / (m*m + 1));
-	//       coords.x = (posX > 0)? coords.x : -coords.x;
-	//       coords.y = Math.abs(m * coords.x);
-	//       coords.y = (posY > 0)? coords.y : -coords.y;
-	//   } else {
-	//       coords.y = posY > 0? pupilR : -pupilR;
-	//   }
-	// }
-	//
-	// pupil.style.setProperty('--pupil-x', coords.x + centerInEyeX - pupilR + 'px');
-	// pupil.style.setProperty('--pupil-y', coords.y + centerInEyeY - pupilR + 'px');
+		// Рассчитываем соотношение координат в процентах относительно центра глаза по оси X
+		const positionXPercent = (function () {
+			// Если положение от центра глаза отрицательное (смещенеие курсора влево)
+			if (differenceX < 0) {
+				//// Возвращаем отрицательное процентное соотношение смещения курсора от центра глаза
+				//// к началу отсчёта смещения слева
+				return (-(differenceX / positionXOffsetRange.from) * 100);
 
-	// const coordX = cursorX - offsetPupil.x - widthPupil / 2;
-	// const coordY = cursorY - offsetPupil.y - heightPupil / 2;
+				// Если положение от центра глаза положительное (смещенеие курсора вправо)
+			} else if (differenceX > 0) {
+				//// Возвращаем процентное соотношение смещения курсора к крайней правой точке экрана
+				return ((differenceX / positionXOffsetRange.to) * 100);
+			}
 
-	// const pupilSizeX = Math.abs((coordX / offsetPupil.x));
+			// Если значение === 0, возвращаем 0
+			return 0;
+		})();
 
-	// console.log(((widthPupil * (coordY)) / Math.sqrt((coordX) * (coordX) + (coordY) * (coordY))) + offsetPupil.y);
+		return positionXPercent;
+	};
+
+	const pupilPositionY = function () {
+		// Положение мышки относительно центра глаза по оси Y
+		const differenceY = mousePos.y - eyeBallCenterPosition.y;
+
+		// Рассчитываем соотношение координат в процентах относительно центра глаза по оси Y
+		const positionYPercent = (function () {
+			// Если положение от центра глаза отрицательное (смещение курсора вверх)
+			if (differenceY < 0) {
+				//// Рассчитываем разницу от верхнего края окна браузера + половина высоты глаза
+				const eyeBallOffsetFromWindowTop = (eyeBallBCR.top + (eyeBallSize.height / 2));
+				//// Возвращаем разницу смещения курсора к отступу от верхней части окна браузера * 100%
+				return ((differenceY / eyeBallOffsetFromWindowTop) * 100);
+
+				// Если положение от центра глаза положительное (смещение курсора вниз)
+			} else if (differenceY > 0) {
+				//// Рассчитываем разницу от нижнего края окна браузера + половина высоты глаза
+				const eyeBallOffsetFromWindowBottom = windowSize.height - (eyeBallBCR.bottom - (eyeBallSize.height / 2));
+				//// Возвращаем разницу смещения курсора к отступу от нижней части окна браузера * 100%
+				return ((differenceY / eyeBallOffsetFromWindowBottom) * 100);
+			}
+
+			return 0;
+		})();
+
+		return positionYPercent;
+	};
+
+	const pupilPositionXPercent = pupilPositionX();
+	const pupilPositionYPercent = pupilPositionY();
+
+	const pupilSize = function () {
+		// Приводим полученные проценты соотношения сторон глаза с курсором к положительным числам
+		const pointX = pupilPositionXPercent * Math.sign(pupilPositionXPercent);
+		const pointY = pupilPositionYPercent * Math.sign(pupilPositionYPercent);
+
+		// Формула - 100% минус сумма процентов координат, деленных на 2 (т.к. два числа), умноженное на 0.03,
+		// чтобы полученное число приводить к максимально допустимому по ТЗ - к трём
+		const calculatedSize = ((100 - ((pointX + pointY) / 2)) * 0.03);
+
+		// Если высчитанное число меньше 1, возвращаем 1, в соответствие с ТЗ
+		return calculatedSize >= 1 ? calculatedSize : 1;
+	};
+
+	eyePupil.style.setProperty('--pupil-x', `${pupilPositionXPercent * 0.3}px`);
+	eyePupil.style.setProperty('--pupil-y', `${pupilPositionYPercent * 0.3}px`);
+	eyePupil.style.setProperty('--pupil-size', pupilSize());
 });
